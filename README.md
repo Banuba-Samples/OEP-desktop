@@ -2,7 +2,10 @@
 
 > **Important**
 >
+> ONLY FOR WINDOWS
+>
 > [master](../../tree/master) branch is always compatible with latest SDK version. Please use [v0.x](../../tree/v0.x) branch for SDK version 0.x (e.g. v0.38).
+>
 
 ## Getting Started
 
@@ -34,16 +37,6 @@
         md build
         cd build
         cmake -A x64 ..
-    ```
-
-    ##### macOS build:
-
-    ```sh
-        cd %path_to_repository%
-        git submodule update --init
-        mkdir build
-        cd build
-        cmake -G Xcode ..
     ```
 
 7. The previous step will generate a Xcode project for macOS and a Visual Studio project for Windows. Open the viewer_standalone project in an appropriate IDE on your platform.

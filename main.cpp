@@ -2,7 +2,7 @@
 
 #include "render_context.hpp"
 #include "effect_player.hpp"
-#include "camera_utils.hpp"
+#include "camera/camera.hpp"
 
 #define BNB_CLIENT_TOKEN <#Place your token here#>
 
@@ -28,24 +28,18 @@ int main()
     // Create instance of offscreen_effect_player, pass effect_player, offscreen_render_target
     // and dimension of processing frame (for best performance it is better to coincide
     // with camera frame dimensions)
-    auto oep = bnb::oep::interfaces::offscreen_effect_player::create(ep, ort, oep_width, oep_height);
+    static auto oep = bnb::oep::interfaces::offscreen_effect_player::create(ep, ort, oep_width, oep_height);
 
     // Make glfw_window and render_thread only for show result of OEP
     // We want to share resources between context, we know that render_context is based on
     // GLFW and returned context is GLFWwindow
     window = std::make_shared<glfw_window>("OEP Example", reinterpret_cast<GLFWwindow*>(rc->get_sharing_context()));
     render_t_sptr render_t = std::make_shared<bnb::render::render_thread>(window->get_window(), oep_width, oep_height);
-    auto key_func = [](GLFWwindow* window, int key, int scancode, int action, int mods) {
-        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
-            glfwSetWindowShouldClose(window, GLFW_TRUE);
-        }
-    };
-    glfwSetKeyCallback(window->get_window(), key_func);
 
     oep->load_effect("effects/Afro");
 
     // Callback for received frame from the camera
-    auto camera_callback = [&oep, render_t](bnb::full_image_t image) {
+    static auto camera_callback = [render_t](pixel_buffer_sptr image) {
         // Callback for received pixel buffer from the offscreen effect player
         auto get_pixel_buffer_callback = [render_t](image_processing_result_sptr result) {
             if (result != nullptr) {
@@ -61,15 +55,28 @@ int main()
             }
         };
 
-        // Convert bnb full_image_t to OEP pixel_buffer
-        // This function just wraps data from one type to another, without doing any manipulations with
-        // the data itself, and without copying it
-        auto pb_image = bnb::camera_utils::full_image_to_pixel_buffer(image);
         // Start image processing
-        oep->process_image_async(pb_image, bnb::oep::interfaces::rotation::deg0, get_pixel_buffer_callback, bnb::oep::interfaces::rotation::deg180);
+        oep->process_image_async(image, bnb::oep::interfaces::rotation::deg0, get_pixel_buffer_callback, bnb::oep::interfaces::rotation::deg180);
     };
     // Create and run instance of camera, pass callback for frames
-    auto m_camera_ptr = bnb::create_camera_device(camera_callback, 0);
+    static camera_sptr m_camera_ptr = std::make_shared<bnb::oep::camera>(camera_callback, 0);
+
+    auto key_func = [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        } else if (key == GLFW_KEY_1 && action == GLFW_PRESS) {
+            oep->stop();
+            m_camera_ptr = nullptr;
+            m_camera_ptr = std::make_shared<bnb::oep::camera>(camera_callback, 0);
+            oep->resume();
+        } else if (key == GLFW_KEY_2 && action == GLFW_PRESS) {
+            oep->stop();
+            m_camera_ptr = nullptr;
+            m_camera_ptr = std::make_shared<bnb::oep::camera>(camera_callback, 1);
+            oep->resume();
+        }
+    };
+    glfwSetKeyCallback(window->get_window(), key_func);
 
     std::weak_ptr<bnb::oep::interfaces::offscreen_effect_player> oep_w = oep;
     render_t_wptr r_w = render_t;
